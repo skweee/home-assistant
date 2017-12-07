@@ -29,8 +29,13 @@ ATTR_STATE_LOCKED = 'is_locked'
 ATTR_STATE_LOW_BAT = 'low_battery'
 ATTR_STATE_AWAY_END = 'away_end'
 
+CONF_FORCE_UPDATE = 'force_update'
+
+DEFAULT_FORCE_UPDATE = False
+
 DEVICE_SCHEMA = vol.Schema({
     vol.Required(CONF_MAC): cv.string,
+    vol.Optional(CONF_FORCE_UPDATE, default=DEFAULT_FORCE_UPDATE): cv.boolean,
 })
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -48,7 +53,8 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 
     for name, device_cfg in config[CONF_DEVICES].items():
         mac = device_cfg[CONF_MAC]
-        devices.append(EQ3BTSmartThermostat(mac, name))
+        force_update = config.get(CONF_FORCE_UPDATE)
+        devices.append(EQ3BTSmartThermostat(mac, name, force_update))
 
     add_devices(devices)
 
@@ -57,7 +63,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 class EQ3BTSmartThermostat(ClimateDevice):
     """Representation of a eQ-3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _mac, _name):
+    def __init__(self, _mac, _name, _force_update):
         """Initialize the thermostat."""
         # We want to avoid name clash with this module.
         import eq3bt as eq3
@@ -74,6 +80,7 @@ class EQ3BTSmartThermostat(ClimateDevice):
         self.reverse_modes = {v: k for k, v in self.modes.items()}
 
         self._name = _name
+        self._force_update = _force_update
         self._thermostat = eq3.Thermostat(_mac)
 
     @property
@@ -170,6 +177,11 @@ class EQ3BTSmartThermostat(ClimateDevice):
 
         return dev_specific
 
+    @property
+    def force_update(self):
+        """Force update."""
+        return self._force_update
+
     def update(self):
         """Update the data from the thermostat."""
         from bluepy.btle import BTLEException
@@ -177,3 +189,4 @@ class EQ3BTSmartThermostat(ClimateDevice):
             self._thermostat.update()
         except BTLEException as ex:
             _LOGGER.warning("Updating the state failed: %s", ex)
+

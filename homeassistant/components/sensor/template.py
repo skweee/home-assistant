@@ -22,13 +22,18 @@ from homeassistant.helpers.event import async_track_state_change
 
 _LOGGER = logging.getLogger(__name__)
 
+CONF_FORCE_UPDATE = 'force_update'
+
+DEFAULT_FORCE_UPDATE = False
+
 SENSOR_SCHEMA = vol.Schema({
     vol.Required(CONF_VALUE_TEMPLATE): cv.template,
     vol.Optional(CONF_ICON_TEMPLATE): cv.template,
     vol.Optional(CONF_ENTITY_PICTURE_TEMPLATE): cv.template,
     vol.Optional(ATTR_FRIENDLY_NAME): cv.string,
     vol.Optional(ATTR_UNIT_OF_MEASUREMENT): cv.string,
-    vol.Optional(ATTR_ENTITY_ID): cv.entity_ids
+    vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Optional(CONF_FORCE_UPDATE, default=DEFAULT_FORCE_UPDATE): cv.boolean
 })
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -51,6 +56,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                       state_template.extract_entities())
         friendly_name = device_config.get(ATTR_FRIENDLY_NAME, device)
         unit_of_measurement = device_config.get(ATTR_UNIT_OF_MEASUREMENT)
+        force_update = device_config.get(CONF_FORCE_UPDATE)
 
         state_template.hass = hass
 
@@ -69,7 +75,8 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                 state_template,
                 icon_template,
                 entity_picture_template,
-                entity_ids)
+                entity_ids,
+                force_update)
             )
     if not sensors:
         _LOGGER.error("No sensors added")
@@ -84,7 +91,7 @@ class SensorTemplate(Entity):
 
     def __init__(self, hass, device_id, friendly_name,
                  unit_of_measurement, state_template, icon_template,
-                 entity_picture_template, entity_ids):
+                 entity_picture_template, entity_ids, force_update):
         """Initialize the sensor."""
         self.hass = hass
         self.entity_id = async_generate_entity_id(ENTITY_ID_FORMAT, device_id,
@@ -98,6 +105,7 @@ class SensorTemplate(Entity):
         self._icon = None
         self._entity_picture = None
         self._entities = entity_ids
+        self._force_update = force_update
 
     @asyncio.coroutine
     def async_added_to_hass(self):
@@ -147,6 +155,11 @@ class SensorTemplate(Entity):
     def should_poll(self):
         """No polling needed."""
         return False
+
+    @property
+    def force_update(self):
+        """Force update."""
+        return self._force_update
 
     @asyncio.coroutine
     def async_update(self):
